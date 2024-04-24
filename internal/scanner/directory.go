@@ -160,7 +160,6 @@ func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error)
 	return files, totalFiles, totalSize, totalSubdirs, lastModified, nil
 }
 
-// Функция для преобразования массива структур в карту
 func ArrayToMap(array []Directory) map[string]Directory {
 	result := make(map[string]Directory)
 	for _, dir := range array {
@@ -169,7 +168,6 @@ func ArrayToMap(array []Directory) map[string]Directory {
 	return result
 }
 
-// Функция для поиска различий между двумя картами структур
 func DiffDirectories(mapA, mapB map[string]Directory) []Directory {
 	var diff []Directory
 	for path, dirA := range mapA {
@@ -181,7 +179,3 @@ func DiffDirectories(mapA, mapB map[string]Directory) []Directory {
 	}
 	return diff
 }
-
-/*func copy(a Directory, b Directory) err {
-	return nil
-}*/
