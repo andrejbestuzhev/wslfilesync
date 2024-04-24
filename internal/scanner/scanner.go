@@ -1,11 +1,13 @@
 package scanner
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+	"wslfilesync/m/v2/internal/queue"
 )
 
 type Scanner struct {
@@ -15,8 +17,10 @@ type Scanner struct {
 	primaryChanged   bool
 	secondaryChanged bool
 
-	primaryDirectories    map[string]Directory
-	secondaryDirectiories map[string]Directory
+	primaryDirectories   map[string]Directory
+	secondaryDirectories map[string]Directory
+
+	queue queue.QueueManager
 }
 
 func Sync() {
@@ -66,9 +70,34 @@ func (s *Scanner) Run() {
 					tmpDir.Info()
 
 					if !tmpDir.Equals(&dir) {
-						// Обработка изменений
-					}
+						// изменилось ли количество файлов
+						if tmpDir.tfiles == dir.tfiles {
+							fmt.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
+						}
 
+						// появился новый файл
+						if tmpDir.tfiles > dir.tfiles {
+							fmt.Println("Added files: ", tmpDir.GetNewFiles(&dir))
+						}
+
+						// файл удалён
+						if tmpDir.tfiles < dir.tfiles {
+							fmt.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
+						}
+
+						// создана новая директория
+						if tmpDir.tdirectories > dir.tdirectories {
+
+						}
+
+						// директория удалена
+						if tmpDir.tfiles < dir.tfiles {
+
+						}
+
+						s.primaryDirectories[tmpDir.path] = tmpDir
+					}
+					time.Sleep(time.Millisecond)
 				}
 				time.Sleep(1 * time.Second)
 			}
@@ -76,6 +105,7 @@ func (s *Scanner) Run() {
 	}
 
 	wg.Wait()
+
 }
 
 func (s *Scanner) ScanSecondary() {
@@ -160,11 +190,11 @@ func (s *Scanner) collectDirectories(path string) ([]Directory, error) {
 func NewScanner(primary string, secondary string) *Scanner {
 
 	scanner := Scanner{
-		primary:               primary,
-		secondary:             secondary,
-		primaryDirectories:    make(map[string]Directory),
-		secondaryDirectiories: make(map[string]Directory),
+		primary:              primary,
+		secondary:            secondary,
+		primaryDirectories:   make(map[string]Directory),
+		secondaryDirectories: make(map[string]Directory),
+		queue:                queue.QueueManager{},
 	}
-
 	return &scanner
 }
