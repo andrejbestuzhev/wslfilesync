@@ -157,7 +157,6 @@ func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error)
 	if err := getDirStat(dirPath); err != nil {
 		return []file{}, 0, 0, 0, time.Time{}, err
 	}
-
 	return files, totalFiles, totalSize, totalSubdirs, lastModified, nil
 }
 

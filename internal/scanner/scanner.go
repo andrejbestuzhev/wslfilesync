@@ -1,7 +1,6 @@
 package scanner
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,21 +26,21 @@ func Sync() {
 
 }
 
-func (s *Scanner) Run() {
-	s.ScanPrimary()
-	//s.ScanSecondary()
+func (s *Scanner) watch(t string) {
 
-	/*var chunkSize = 10
-	if len(s.primaryDirectories) < 10 {
-		chunkSize = len(s.primaryDirectories)
-	}*/
+	var toWatch map[string]Directory
 
-	//for _, value := range s.primaryDirectories {
-	//fmt.Println(value)
-	//}
+	switch t {
+	case "primary":
+		toWatch = s.primaryDirectories
+	case "secondary":
+		toWatch = s.secondaryDirectories
+	default:
+		log.Fatalln("Invalid type given")
+	}
 
-	keys := make([]string, 0, len(s.primaryDirectories))
-	for key := range s.primaryDirectories {
+	keys := make([]string, 0, len(toWatch))
+	for key := range toWatch {
 		keys = append(keys, key)
 	}
 
@@ -63,7 +62,7 @@ func (s *Scanner) Run() {
 		go func(dirs []string) {
 			defer wg.Done()
 			for {
-				for path, dir := range s.primaryDirectories {
+				for path, dir := range toWatch {
 					tmpDir := Directory{
 						path: path,
 					}
@@ -71,31 +70,31 @@ func (s *Scanner) Run() {
 
 					if !tmpDir.Equals(&dir) {
 						// изменилось ли количество файлов
-						if tmpDir.tfiles == dir.tfiles {
-							fmt.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
+						if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
+							log.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
 						}
 
 						// появился новый файл
 						if tmpDir.tfiles > dir.tfiles {
-							fmt.Println("Added files: ", tmpDir.GetNewFiles(&dir))
+							log.Println("Added files: ", tmpDir.GetNewFiles(&dir))
 						}
 
 						// файл удалён
 						if tmpDir.tfiles < dir.tfiles {
-							fmt.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
+							log.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
 						}
 
 						// создана новая директория
 						if tmpDir.tdirectories > dir.tdirectories {
-
+							log.Println("Added directories: ")
 						}
 
 						// директория удалена
 						if tmpDir.tfiles < dir.tfiles {
-
+							log.Println("Removed directories")
 						}
 
-						s.primaryDirectories[tmpDir.path] = tmpDir
+						toWatch[tmpDir.path] = tmpDir
 					}
 					time.Sleep(time.Millisecond)
 				}
@@ -105,7 +104,14 @@ func (s *Scanner) Run() {
 	}
 
 	wg.Wait()
+}
 
+func (s *Scanner) Run() {
+	log.Println("Scanning...")
+	s.ScanPrimary()
+	log.Println("Initial sync...")
+	log.Println("Watching", s.primary)
+	s.watch("primary")
 }
 
 func (s *Scanner) ScanSecondary() {
@@ -129,7 +135,7 @@ func (s *Scanner) ScanSecondary() {
 	}
 
 	wg.Wait()
-	log.Println("Secondray directory scan finished")
+	log.Println("Secondary directory scan finished")
 }
 
 func (s *Scanner) Info(wg *sync.WaitGroup, dd Directory) {
@@ -155,7 +161,6 @@ func (s *Scanner) ScanPrimary() {
 	}
 
 	log.Printf("Primary directories: %d", len(s.primaryDirectories))
-	log.Println("Primary directory scan finished")
 }
 
 func (s *Scanner) collectDirectories(path string) ([]Directory, error) {
