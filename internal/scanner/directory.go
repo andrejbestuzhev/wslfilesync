@@ -3,7 +3,6 @@ package scanner
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"time"
 )
 
@@ -13,50 +12,24 @@ type Directory struct {
 	tfiles       uint64
 	tdirectories uint64
 	files        []file
+	directories  []string
 	lastModified time.Time
 }
 
-func (d *Directory) Info() {
+func (d *Directory) Info() bool {
 
-	files, tfiles, size, directories, lastModified, err := getStats(d.path)
+	files, tfiles, size, tdirectories, subdirs, lastModified, err := getStats(d.path)
 	if err != nil {
-		log.Panicln(err)
+		return false
 	}
+
 	d.tfiles = tfiles
 	d.size = size
-	d.tdirectories = directories
+	d.tdirectories = tdirectories
 	d.files = files
+	d.directories = subdirs
 	d.lastModified = lastModified
-}
-
-func strDiff(a []string, b []string) []string {
-	array2Map := make(map[string]bool)
-	for _, str := range b {
-		array2Map[str] = true
-	}
-
-	var diff []string
-	for _, str := range a {
-		if !array2Map[str] {
-			diff = append(diff, str)
-		}
-	}
-
-	return diff
-}
-
-func prepareStringsFromFiles(aDir Directory, bDir Directory) ([]string, []string) {
-	var aDirFiles []string
-	var bDirFiles []string
-
-	for _, f := range aDir.files {
-		aDirFiles = append(aDirFiles, f.Name)
-	}
-
-	for _, f := range bDir.files {
-		bDirFiles = append(bDirFiles, f.Name)
-	}
-	return aDirFiles, bDirFiles
+	return true
 }
 
 func (d *Directory) GetUpdateFiles(bDir *Directory) []string {
@@ -80,7 +53,6 @@ func (d *Directory) GetNewFiles(bDir *Directory) []string {
 }
 
 func (d *Directory) GetRemovedFiles(bDir *Directory) []string {
-
 	a, b := prepareStringsFromFiles(*bDir, *d)
 	diff := strDiff(a, b)
 	var res []string
@@ -90,12 +62,24 @@ func (d *Directory) GetRemovedFiles(bDir *Directory) []string {
 	return res
 }
 
-func (d *Directory) GetNewDirectories() {
-
+func (d *Directory) GetNewDirectories(bDir *Directory) []string {
+	a, b := prepareStringsFromDirectories(*d, *bDir)
+	diff := strDiff(a, b)
+	var res []string
+	for _, f := range diff {
+		res = append(res, fmt.Sprintf("%s/%s", d.path, f))
+	}
+	return res
 }
 
-func (d *Directory) GetRemovedDirectories() {
-
+func (d *Directory) GetRemovedDirectories(bDir *Directory) []string {
+	a, b := prepareStringsFromDirectories(*bDir, *d)
+	diff := strDiff(a, b)
+	var res []string
+	for _, f := range diff {
+		res = append(res, fmt.Sprintf("%s/%s", d.path, f))
+	}
+	return res
 }
 
 func (d *Directory) GetFileIndexByString(filename string) (int, bool) {
@@ -114,11 +98,12 @@ func (d *Directory) Equals(d2 *Directory) bool {
 		d.lastModified.Equal(d2.lastModified)
 }
 
-func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error) {
+func getStats(dirPath string) ([]file, uint64, uint64, uint64, []string, time.Time, error) {
 	var totalSize uint64
 	var totalFiles uint64
 	var totalSubdirs uint64
 	var files []file
+	var subdirs []string
 	var lastModified time.Time
 
 	var getDirStat func(path string) error
@@ -131,6 +116,7 @@ func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error)
 		for _, f := range filesInDir {
 			if f.IsDir() {
 				totalSubdirs++
+				subdirs = append(subdirs, f.Name())
 			} else {
 				totalFiles++
 				files = append(files, file{
@@ -154,7 +140,53 @@ func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error)
 	}
 
 	if err := getDirStat(dirPath); err != nil {
-		return []file{}, 0, 0, 0, time.Time{}, err
+		return []file{}, 0, 0, 0, []string{}, time.Time{}, err
 	}
-	return files, totalFiles, totalSize, totalSubdirs, lastModified, nil
+	return files, totalFiles, totalSize, totalSubdirs, subdirs, lastModified, nil
+}
+
+func strDiff(a []string, b []string) []string {
+	array2Map := make(map[string]bool)
+	for _, str := range b {
+		array2Map[str] = true
+	}
+
+	var diff []string
+	for _, str := range a {
+		if !array2Map[str] {
+			diff = append(diff, str)
+		}
+	}
+
+	return diff
+}
+
+func prepareStringsFromDirectories(aDir Directory, bDir Directory) ([]string, []string) {
+	var aDirSubdirs []string
+	var bDirSubdirs []string
+
+	for _, d := range aDir.directories {
+		aDirSubdirs = append(aDirSubdirs, d)
+	}
+
+	for _, d := range bDir.directories {
+		bDirSubdirs = append(bDirSubdirs, d)
+	}
+	fmt.Println(aDirSubdirs)
+	fmt.Println(bDirSubdirs)
+	return aDirSubdirs, bDirSubdirs
+}
+
+func prepareStringsFromFiles(aDir Directory, bDir Directory) ([]string, []string) {
+	var aDirFiles []string
+	var bDirFiles []string
+
+	for _, f := range aDir.files {
+		aDirFiles = append(aDirFiles, f.Name)
+	}
+
+	for _, f := range bDir.files {
+		bDirFiles = append(bDirFiles, f.Name)
+	}
+	return aDirFiles, bDirFiles
 }

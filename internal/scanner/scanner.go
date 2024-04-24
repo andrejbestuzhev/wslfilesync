@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,88 +23,65 @@ type Scanner struct {
 	queue queue.QueueManager
 }
 
-func Sync() {
-
-}
-
 func (s *Scanner) watch(t string) {
 
 	var toWatch map[string]Directory
+	var toWatchOverwrite func()
 
 	switch t {
 	case "primary":
 		toWatch = s.primaryDirectories
+		toWatchOverwrite = func() {
+			s.ScanPrimary()
+		}
 	case "secondary":
 		toWatch = s.secondaryDirectories
+		toWatchOverwrite = func() {
+			s.ScanSecondary()
+		}
 	default:
 		log.Fatalln("Invalid type given")
 	}
 
-	keys := make([]string, 0, len(toWatch))
-	for key := range toWatch {
-		keys = append(keys, key)
-	}
+	changed := false
 
-	chunkSize := len(keys) / 10
-	chunks := make([][]string, 10)
-	for i := 0; i < 10; i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if i == 9 {
-			end = len(keys)
+	for path, dir := range toWatch {
+		tmpDir := Directory{
+			path: path,
 		}
-		chunks[i] = keys[start:end]
-	}
+		if !tmpDir.Info() {
+			fmt.Println("Directory removed", tmpDir.path)
+			delete(toWatch, tmpDir.path)
+		}
 
-	var wg sync.WaitGroup
-
-	for _, chunk := range chunks {
-		wg.Add(1)
-		go func(dirs []string) {
-			defer wg.Done()
-			for {
-				for path, dir := range toWatch {
-					tmpDir := Directory{
-						path: path,
-					}
-					tmpDir.Info()
-
-					if !tmpDir.Equals(&dir) {
-						// изменилось ли количество файлов
-						if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
-							log.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
-						}
-
-						// появился новый файл
-						if tmpDir.tfiles > dir.tfiles {
-							log.Println("Added files: ", tmpDir.GetNewFiles(&dir))
-						}
-
-						// файл удалён
-						if tmpDir.tfiles < dir.tfiles {
-							log.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
-						}
-
-						// создана новая директория
-						if tmpDir.tdirectories > dir.tdirectories {
-							log.Println("Added directories: ")
-						}
-
-						// директория удалена
-						if tmpDir.tfiles < dir.tfiles {
-							log.Println("Removed directories")
-						}
-
-						toWatch[tmpDir.path] = tmpDir
-					}
-					time.Sleep(time.Millisecond)
-				}
-				time.Sleep(1 * time.Second)
+		if !tmpDir.Equals(&dir) {
+			changed = true
+			// изменилось ли количество файлов
+			if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
+				log.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
 			}
-		}(chunk)
+
+			// появился новый файл
+			if tmpDir.tfiles > dir.tfiles {
+				log.Println("Added files: ", tmpDir.GetNewFiles(&dir))
+			}
+
+			// файл удалён
+			if tmpDir.tfiles < dir.tfiles {
+				log.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
+			}
+
+			// создана новая директория
+			if tmpDir.tdirectories > dir.tdirectories {
+				log.Println("Added directories: ", tmpDir.GetNewDirectories(&dir))
+			}
+		}
+		time.Sleep(time.Nanosecond)
 	}
 
-	wg.Wait()
+	if changed {
+		toWatchOverwrite()
+	}
 }
 
 func (s *Scanner) Run() {
@@ -111,7 +89,10 @@ func (s *Scanner) Run() {
 	s.ScanPrimary()
 	log.Println("Initial sync...")
 	log.Println("Watching", s.primary)
-	s.watch("primary")
+	for true {
+		s.watch("primary")
+		time.Sleep(time.Nanosecond)
+	}
 }
 
 func (s *Scanner) ScanSecondary() {
