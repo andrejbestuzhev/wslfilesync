@@ -35,7 +35,6 @@ func strDiff(a []string, b []string) []string {
 		array2Map[str] = true
 	}
 
-	// Выбираем элементы, которых нет в массиве 2
 	var diff []string
 	for _, str := range a {
 		if !array2Map[str] {
