@@ -159,23 +159,3 @@ func getStats(dirPath string) ([]file, uint64, uint64, uint64, time.Time, error)
 	}
 	return files, totalFiles, totalSize, totalSubdirs, lastModified, nil
 }
-
-func ArrayToMap(array []Directory) map[string]Directory {
-	result := make(map[string]Directory)
-	for _, dir := range array {
-		result[dir.path] = dir
-	}
-	return result
-}
-
-func DiffDirectories(mapA, mapB map[string]Directory) []Directory {
-	var diff []Directory
-	for path, dirA := range mapA {
-		if dirB, ok := mapB[path]; ok {
-			if dirA.size != dirB.size {
-				diff = append(diff, dirA)
-			}
-		}
-	}
-	return diff
-}
