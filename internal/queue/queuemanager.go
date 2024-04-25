@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,7 +17,6 @@ func (q *QueueManager) Add(task Task) {
 
 func (q *QueueManager) Run() {
 	for _, t := range q.Tasks {
-		fmt.Println(t)
 		switch t.Action {
 		case AddFile:
 			if err := copyFile(t.From, t.To); err != nil {
@@ -42,7 +40,6 @@ func (q *QueueManager) Run() {
 }
 
 func removeFile(dest string) error {
-	fmt.Println("Remove:", dest)
 	return os.Remove(dest)
 }
 

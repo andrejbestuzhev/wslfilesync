@@ -75,7 +75,6 @@ func (s *Scanner) watch(t string) {
 			path: path,
 		}
 		if !tmpDir.Info() {
-			fmt.Println("Directory removed", tmpDir.path)
 			// folder deleted
 			delete(toWatch, tmpDir.path)
 		}
@@ -139,8 +138,6 @@ func (s *Scanner) Run() {
 	log.Println("Scanning...")
 	s.ScanPrimary()
 	s.ScanSecondary()
-	fmt.Println(s.primaryDirectories)
-	fmt.Println(s.secondaryDirectories)
 	log.Println("Initial sync...")
 	s.initSync()
 	log.Println("Watching", s.primary)
