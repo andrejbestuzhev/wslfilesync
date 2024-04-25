@@ -15,7 +15,7 @@ wslfilesync scans the primary directory for changes and copies these changes to 
 
 ## Run
 - Open WSL
-- Run ./bin/wslfilesync -a <main directory> -b <secondary directory>
+- Run ```./bin/wslfilesync -a <main directory> -b <secondary directory>```
 
 ## To do
 - More async
