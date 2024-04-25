@@ -57,7 +57,6 @@ func copyFile(source string, dest string) error {
 		return err
 	}
 
-	// Создаем новый файл в целевой директории
 	err = os.WriteFile(dest, content, 0644)
 	if err != nil {
 		return err

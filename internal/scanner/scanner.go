@@ -76,14 +76,13 @@ func (s *Scanner) watch(t string) {
 		}
 		if !tmpDir.Info() {
 			fmt.Println("Directory removed", tmpDir.path)
-			// директория удалена
+			// folder deleted
 			delete(toWatch, tmpDir.path)
 		}
 
 		if !tmpDir.Equals(&dir) {
-			fmt.Println("DDD")
 			changed = true
-			// обновился файл
+			// file updated
 			if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
 				updatedFiles := tmpDir.GetUpdateFiles(&dir)
 				for _, f := range updatedFiles {
@@ -96,7 +95,7 @@ func (s *Scanner) watch(t string) {
 				log.Println("Updated files: ", updatedFiles)
 			}
 
-			// появился новый файл
+			// file added
 			if tmpDir.tfiles > dir.tfiles {
 				log.Println("Added files: ", tmpDir.GetNewFiles(&dir))
 				addedFiles := tmpDir.GetNewFiles(&dir)
@@ -109,7 +108,7 @@ func (s *Scanner) watch(t string) {
 				}
 			}
 
-			// файл удалён
+			// file deleted
 			if tmpDir.tfiles < dir.tfiles {
 				deletedFiles := tmpDir.GetRemovedFiles(&dir)
 				for _, f := range deletedFiles {
@@ -122,7 +121,7 @@ func (s *Scanner) watch(t string) {
 				log.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
 			}
 
-			// создана новая директория
+			// folder created
 			if tmpDir.tdirectories > dir.tdirectories {
 				log.Println("Added directories: ", tmpDir.GetNewDirectories(&dir))
 			}
@@ -220,7 +219,6 @@ func (s *Scanner) collectDirectories(path string) ([]Directory, error) {
 }
 
 func copyDirContents(src, dst string) error {
-	// Создаем целевую директорию, если ее нет
 	if err := os.MkdirAll(dst, 0755); err != nil {
 		return err
 	}
