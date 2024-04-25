@@ -26,16 +26,25 @@ type Scanner struct {
 func (s *Scanner) watch(t string) {
 
 	var toWatch map[string]Directory
+	var toWatchTarget string
+	//var toSync map[string]Directory
+	var toSyncTarget string
 	var toWatchOverwrite func()
 
 	switch t {
 	case "primary":
 		toWatch = s.primaryDirectories
+		//toSync = s.secondaryDirectories
+		toSyncTarget = s.secondary
+		toWatchTarget = s.primary
 		toWatchOverwrite = func() {
 			s.ScanPrimary()
 		}
 	case "secondary":
 		toWatch = s.secondaryDirectories
+		//toSync = s.primaryDirectories
+		toWatchTarget = s.primary
+		toSyncTarget = s.primary
 		toWatchOverwrite = func() {
 			s.ScanSecondary()
 		}
@@ -59,16 +68,40 @@ func (s *Scanner) watch(t string) {
 			changed = true
 			// обновился файл
 			if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
-				log.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
+				updatedFiles := tmpDir.GetUpdateFiles(&dir)
+				for _, f := range updatedFiles {
+					s.queue.Add(queue.Task{
+						Action: queue.UpdateFile,
+						From:   f,
+						To:     fmt.Sprintf("%s/%s/%s", toSyncTarget, tmpDir.GetRelative(toWatchTarget), filepath.Base(f)),
+					})
+				}
+				log.Println("Updated files: ", updatedFiles)
 			}
 
 			// появился новый файл
 			if tmpDir.tfiles > dir.tfiles {
 				log.Println("Added files: ", tmpDir.GetNewFiles(&dir))
+				addedFiles := tmpDir.GetNewFiles(&dir)
+				for _, f := range addedFiles {
+					s.queue.Add(queue.Task{
+						Action: queue.AddFile,
+						From:   f,
+						To:     fmt.Sprintf("%s/%s/%s", toSyncTarget, tmpDir.GetRelative(toWatchTarget), filepath.Base(f)),
+					})
+				}
 			}
 
 			// файл удалён
 			if tmpDir.tfiles < dir.tfiles {
+				deletedFiles := tmpDir.GetRemovedFiles(&dir)
+				for _, f := range deletedFiles {
+					s.queue.Add(queue.Task{
+						Action: queue.DeleteFile,
+						From:   f,
+						To:     fmt.Sprintf("%s/%s/%s", toSyncTarget, tmpDir.GetRelative(toWatchTarget), filepath.Base(f)),
+					})
+				}
 				log.Println("Deleted files: ", tmpDir.GetRemovedFiles(&dir))
 			}
 

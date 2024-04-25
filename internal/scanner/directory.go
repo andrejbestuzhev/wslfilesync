@@ -3,6 +3,8 @@ package scanner
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
+	"strings"
 	"time"
 )
 
@@ -14,6 +16,15 @@ type Directory struct {
 	files        []file
 	directories  []string
 	lastModified time.Time
+}
+
+func (d *Directory) GetRelative(root string) string {
+	index := strings.Index(d.path, root)
+	if index == -1 {
+		log.Panicln("Unable to get root:", root, d.path)
+	}
+
+	return d.path[index+len(root)+1:]
 }
 
 func (d *Directory) Info() bool {
@@ -172,8 +183,6 @@ func prepareStringsFromDirectories(aDir Directory, bDir Directory) ([]string, []
 	for _, d := range bDir.directories {
 		bDirSubdirs = append(bDirSubdirs, d)
 	}
-	fmt.Println(aDirSubdirs)
-	fmt.Println(bDirSubdirs)
 	return aDirSubdirs, bDirSubdirs
 }
 

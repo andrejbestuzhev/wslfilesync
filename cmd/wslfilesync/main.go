@@ -7,8 +7,8 @@ import (
 
 func main() {
 
-	primary := flag.String("primary", "", "Main dir")
-	secondary := flag.String("secondary", "", "Sync with")
+	primary := flag.String("a", "", "Main dir")
+	secondary := flag.String("b", "", "Sync with")
 	flag.Parse()
 	s := scanner.NewScanner(*primary, *secondary)
 	s.Run()

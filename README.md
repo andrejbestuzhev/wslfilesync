@@ -21,3 +21,5 @@ wslfilesync scans the primary directory for changes and copies these changes to 
 - More async
 - Optimize update loop
 - Dokerize
+- Process permissions right way
+- Tests
