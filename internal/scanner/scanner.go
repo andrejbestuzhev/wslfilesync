@@ -51,12 +51,13 @@ func (s *Scanner) watch(t string) {
 		}
 		if !tmpDir.Info() {
 			fmt.Println("Directory removed", tmpDir.path)
+			// директория удалена
 			delete(toWatch, tmpDir.path)
 		}
 
 		if !tmpDir.Equals(&dir) {
 			changed = true
-			// изменилось ли количество файлов
+			// обновился файл
 			if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
 				log.Println("Updated files: ", tmpDir.GetUpdateFiles(&dir))
 			}
@@ -80,6 +81,7 @@ func (s *Scanner) watch(t string) {
 	}
 
 	if changed {
+		s.queue.Run()
 		toWatchOverwrite()
 	}
 }
@@ -91,6 +93,7 @@ func (s *Scanner) Run() {
 	log.Println("Watching", s.primary)
 	for true {
 		s.watch("primary")
+		// s.watch("secondary")
 		time.Sleep(time.Nanosecond)
 	}
 }
