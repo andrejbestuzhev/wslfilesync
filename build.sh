@@ -1,0 +1,1 @@
+go build -o bin/wslfilesync cmd/wslfilesync/main.go
