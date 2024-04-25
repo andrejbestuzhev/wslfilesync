@@ -9,6 +9,7 @@ Passing inotify from the primary system to WSL does not work, so rsync bypasses 
 
 ## How it works
 wslfilesync scans the primary directory for changes and copies these changes to the synchronized directory, and does the same with the synchronized vice versa.
+WARNING: tool deletes everything in B directory on startup.
 
 ## Build
 ```./build.sh``` - just build it
