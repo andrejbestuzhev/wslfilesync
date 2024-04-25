@@ -2,10 +2,11 @@ package scanner
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 	"wslfilesync/m/v2/internal/queue"
 )
@@ -23,18 +24,34 @@ type Scanner struct {
 	queue queue.QueueManager
 }
 
+func (s *Scanner) initSync() {
+	entries, err := os.ReadDir(s.secondary)
+	if err != nil {
+		log.Fatalln("Unable to read dir", err)
+	}
+	for _, f := range entries {
+		err = os.RemoveAll(s.secondary + "/" + f.Name())
+		if err != nil {
+			log.Panicln("Unable to del files", err)
+		}
+	}
+	err = copyDirContents(s.primary, s.secondary)
+	if err != nil {
+		log.Fatalln("Unable to copy from a to b", err)
+	}
+	s.ScanSecondary()
+}
+
 func (s *Scanner) watch(t string) {
 
 	var toWatch map[string]Directory
 	var toWatchTarget string
-	//var toSync map[string]Directory
 	var toSyncTarget string
 	var toWatchOverwrite func()
 
 	switch t {
 	case "primary":
 		toWatch = s.primaryDirectories
-		//toSync = s.secondaryDirectories
 		toSyncTarget = s.secondary
 		toWatchTarget = s.primary
 		toWatchOverwrite = func() {
@@ -42,8 +59,7 @@ func (s *Scanner) watch(t string) {
 		}
 	case "secondary":
 		toWatch = s.secondaryDirectories
-		//toSync = s.primaryDirectories
-		toWatchTarget = s.primary
+		toWatchTarget = s.secondary
 		toSyncTarget = s.primary
 		toWatchOverwrite = func() {
 			s.ScanSecondary()
@@ -65,6 +81,7 @@ func (s *Scanner) watch(t string) {
 		}
 
 		if !tmpDir.Equals(&dir) {
+			fmt.Println("DDD")
 			changed = true
 			// обновился файл
 			if tmpDir.tfiles == dir.tfiles && tmpDir.tdirectories == dir.tdirectories {
@@ -122,43 +139,36 @@ func (s *Scanner) watch(t string) {
 func (s *Scanner) Run() {
 	log.Println("Scanning...")
 	s.ScanPrimary()
+	s.ScanSecondary()
+	fmt.Println(s.primaryDirectories)
+	fmt.Println(s.secondaryDirectories)
 	log.Println("Initial sync...")
+	s.initSync()
 	log.Println("Watching", s.primary)
 	for true {
 		s.watch("primary")
-		// s.watch("secondary")
+		s.watch("secondary")
 		time.Sleep(time.Nanosecond)
 	}
 }
 
 func (s *Scanner) ScanSecondary() {
 
-	directories, err := s.collectDirectories(s.primary)
+	directories, err := s.collectDirectories(s.secondary)
+
+	firstDir := Directory{path: s.secondary}
+	firstDir.Info()
+
+	s.secondaryDirectories[s.secondary] = firstDir
+
 	if err != nil {
 		log.Panicln(err)
 	}
 	for _, dir := range directories {
-		s.primaryDirectories[dir.path] = dir
+		s.secondaryDirectories[dir.path] = dir
 	}
 
-	log.Printf("Secondary directories: %d", len(s.primaryDirectories))
-
-	var wg sync.WaitGroup
-
-	for _, dir := range directories {
-		wg.Add(1)
-		d := s.primaryDirectories[dir.path]
-		go s.Info(&wg, d)
-	}
-
-	wg.Wait()
-	log.Println("Secondary directory scan finished")
-}
-
-func (s *Scanner) Info(wg *sync.WaitGroup, dd Directory) {
-	defer wg.Done()
-	dd.Info()
-	s.primaryDirectories[dd.path] = dd
+	log.Printf("Secondary directories: %d", len(s.secondaryDirectories))
 }
 
 func (s *Scanner) ScanPrimary() {
@@ -207,6 +217,55 @@ func (s *Scanner) collectDirectories(path string) ([]Directory, error) {
 		}
 	}
 	return directories, nil
+}
+
+func copyDirContents(src, dst string) error {
+	// Создаем целевую директорию, если ее нет
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := copyDirContents(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewScanner(primary string, secondary string) *Scanner {
